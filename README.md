@@ -27,7 +27,7 @@ O objetivo deste projeto é praticar conceitos de automação, manipulação de 
 
 2. Entre na pasta do projeto:
    ```bash
-    cd pgats-programacao-js
+    cd https-github.com-TatiORodrigues
 
 3. Execute os arquivos .js no navegador ou via Node.js:
     ```bash
