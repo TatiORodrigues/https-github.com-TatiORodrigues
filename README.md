@@ -23,7 +23,7 @@ O objetivo deste projeto é praticar conceitos de automação, manipulação de 
 
 1. Clone o repositório:
    ```bash
- https://github.com/TatiORodrigues/https-github.com-TatiORodrigues.git
+git clone https://github.com/TatiORodrigues/https-github.com-TatiORodrigues.git
 
 2. Entre na pasta do projeto:
    ```bash
