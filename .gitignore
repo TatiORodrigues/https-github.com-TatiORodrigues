@@ -1,0 +1,27 @@
+node_modules
+log
+results
+screeshots
+npm_install_debug.log
+package-lock.json
+.DS_Store
+cat > .gitignore <<EOF
+# macOS
+.DS_Store
+
+# Node / JS
+node_modules/
+npm-debug.log
+
+# Cypress artifacts
+cypress/screenshots/
+cypress/videos/
+cypress/reports/
+
+# IDE / Editor
+.vscode/
+.idea/
+
+# env
+.env
+EOF
