@@ -11,39 +11,34 @@ describe('Automation Exercise Test Suite_CARRINHO', () => {
         // Executa antes de cada teste
         cy.viewport('macbook-13');
         cy.visit('https://www.automationexercise.com/');
-        cy.get('a[href="/login"]').click(); // Navega para a página de login/cadastro antes de cada teste
-
+        // Asserção de visibilidade para garantir que a página carregou
+        cy.get('a[href="/login"]').should('be.visible').click(); // Navega para a página de login/cadastro
     });
 
     it('TC15-Comprar produtos e cadastrar um usuário', () => {
-        //const timestamp = new Date().getTime();
         // Definindo email e a senha únicos para o cadastro
         const email = getRandomEmail();
-        const number = getRandomNumber();
-        const password = '123456';
+        // O número do cartão pode ser simples, já que é um teste de UI
+        const cardNumber = getRandomNumber(); // Mantendo a variável original
 
-        //Triplo AAA - Arrange, Act, Assert
-        //ARRANGE
+        // --- 1. CADASTRO DE USUÁRIO (ARRANGE) ---
+        cy.log('**Iniciando Cadastro do Usuário**');
         cy.get('[data-qa="signup-name"]').type('Renata Taylor Tres');
         cy.get('[data-qa="signup-email"]').type(email);
-
         cy.get('[data-qa="signup-button"]').click();
 
-        //Radio ou chekboxes -> check -> se for escolher id: cy.get('#id_gender2').check()
+        // Formulário de Informação da Conta
         cy.get('#id_gender2').check();
-
-        // log: false para não mostrar a senha no log do Cypress
-        cy.get('input#password').type(password, { log: false });
-
-        //dropdowns -> select
+        cy.get('input#password').type('123456', { log: false }); // Senha fixa é aceitável em testes
+        
         cy.get('select[data-qa=days]').select('10');
         cy.get('select[data-qa=months]').select('May');
         cy.get('select[data-qa=years]').select('1997');
 
-        //radio ou checkboxes -> check
-        cy.get('input[type=checkbox][id=newsletter]').check();
-        cy.get('input[type=checkbox][id=optin]').check();
+        cy.get('input[id=newsletter]').check();
+        cy.get('input[id=optin]').check();
 
+        // Detalhes de Endereço
         cy.get('[data-qa=first_name]').type('Renata');
         cy.get('[data-qa=last_name]').type('Taylor Tres');
         cy.get('[data-qa=company]').type('New Company Inc. Second');
@@ -54,104 +49,89 @@ describe('Automation Exercise Test Suite_CARRINHO', () => {
         cy.get('[data-qa=zipcode]').type('A1B 2C8');
         cy.get('[data-qa=mobile_number]').type('234 567 899');
 
-        //ACT
+        // Cria a conta
         cy.get('button[data-qa=create-account]').click();
 
-        //ASSERT
-        //verifica se a url atual contém /account_created/
+        // Asserções de Criação de Conta
         cy.url().should('include', '/account_created');
         cy.get('h2[data-qa="account-created"]').should('have.text', 'Account Created!');
+        cy.get('a[data-qa="continue-button"]').click();
 
-        cy.get('a[data-qa="continue-button"]').click(); //retorna para a página logada
+        // Verifica o status de login
+        cy.get('ul.nav.navbar-nav').should('contain.text', 'Logged in as');
 
-        cy.get('a').should('contain.text', 'Logged in as');
-
-        //Comprar produtos
-        cy.get('a[data-product-id="3"]').first().click({ force: true }); //produto 1
-        cy.get('h4[class="modal-title w-100"]').should('have.text', 'Added!');
-        cy.wait(1000); // wait for modal to be fully visible
-        cy.get('.modal-content').within(() => {
-            cy.get('button.close-modal').click({ force: true }); //botão continue shopping (fechar modal)
-        });
-
-        cy.get('a[data-product-id="6"]').first().click({ force: true }); //produto 2
-        cy.get('h4[class="modal-title w-100"]').should('have.text', 'Added!');
-        // close the modal before clicking the cart link to avoid overlay covering the link
-        cy.wait(500);
-        cy.get('.modal-content').within(() => {
-            // prefer a normal click; use force only if necessary
-            cy.get('button.close-modal').first().click({ force: true }); // fechar modal (continue shopping)
-        });
-        // if modal/backdrop still present (some environments keep it), remove it as a fallback
-        cy.get('body').then($body => {
-            if ($body.find('#cartModal').length) {
-                cy.get('#cartModal').then($m => {
-                    // try to hide/remove via jQuery/modal API if available
-                    cy.window().then(win => {
-                        try {
-                            if (win.$ && win.$('#cartModal').modal) {
-                                win.$('#cartModal').modal('hide');
-                            }
-                        } catch (e) {
-                            // ignore
-                        }
-                    });
-                    // as last resort remove classes and hide
-                    cy.wrap($m).invoke('removeClass', 'show').invoke('css', 'display', 'none');
-                });
-                // remove backdrop directly from the already-captured body to avoid cy.get retry errors
-                $body.find('.modal-backdrop').remove();
-            }
-        });
-        cy.get('a[href="/view_cart"]').first().click(); //link para o carrinho
-
-        cy.get('body').then($body => {
-            if ($body.find('.modal-content').length) {
-                const $modal = $body.find('.modal-content').first();
-                // try a few known close button variants inside the modal, otherwise remove as fallback
-                if ($modal.find('.btn.btn-success.close-modal.btn-block[data-dismiss="modal"]').length) {
-                    cy.wrap($modal).find('.btn.btn-success.close-modal.btn-block[data-dismiss="modal"]').first().click({ force: true });
-                } else if ($modal.find('button.close-modal').length) {
-                    cy.wrap($modal).find('button.close-modal').first().click({ force: true });
-                } else {
-                    cy.wrap($modal).invoke('removeClass', 'show').invoke('css', 'display', 'none');
-                }
-                cy.wrap($modal).should('not.be.visible');
-            }
-        });
+        // --- 2. ADICIONAR PRODUTOS (ACT) ---
+        cy.log('**Adicionando Produtos ao Carrinho**');
         
+        const CART_MODAL = '#cartModal';
+        const VIEW_CART_LINK = 'a[href="/view_cart"]';
+        const CLOSE_MODAL_BUTTON = 'button.close-modal';
+
+        // Função auxiliar para adicionar item e fechar o modal
+        const addItemAndCloseModal = (productId) => {
+            // Clicar em Adicionar ao Carrinho
+            cy.get(`a[data-product-id="${productId}"]`).first().click(); 
+            
+            // 💡 ASSERÇÃO: Espera que o modal de sucesso apareça
+            cy.get(CART_MODAL).should('be.visible').within(() => {
+                cy.get('h4.modal-title').should('have.text', 'Added!');
+                
+                // Clicar em "Continue Shopping" (Botão de fechar)
+                cy.get(CLOSE_MODAL_BUTTON).click(); 
+            });
+
+            // 💡 CORREÇÃO PRINCIPAL: Espera que o modal desapareça *antes* de continuar
+            cy.get(CART_MODAL).should('not.be.visible');
+        };
+
+        // Produto 1
+        addItemAndCloseModal(3);
+
+        // Produto 2
+        addItemAndCloseModal(6); 
+        
+        // --- 3. CHECKOUT (ACT) ---
+        cy.log('**Navegando para o Carrinho**');
+
+        // Clicar no link do Carrinho (garantimos que o modal não está na frente)
+        cy.get(VIEW_CART_LINK).first().click(); 
+        
+        // Asserções no Carrinho
         cy.url().should('include', '/view_cart');
+        cy.get('a.check_out').click();
 
-        cy.get('a[class="btn btn-default check_out"]').click();
-
+        // Asserções na página de Checkout
         cy.url().should('include', '/checkout');
-
-        cy.get('li[class="address_firstname address_lastname"]').should('be.visible');
+        cy.get('li.address_firstname.address_lastname').should('be.visible');
         cy.get('a[href="/product_details/6"]').should('be.visible');
         cy.get('a[href="/product_details/3"]').should('be.visible');
+        
         cy.get('#ordermsg').should('be.visible');
-        cy.get('textarea[class="form-control"]').type('Please be carefull with package.');
+        cy.get('textarea.form-control').type('Please be careful with package.');
 
         cy.get('a[href="/payment"]').click();
 
+        // Asserções na página de Pagamento
         cy.url().should('contain', '/payment');
 
         cy.get('input[data-qa="name-on-card"]').type('Renata Taylor Tres');
-        cy.get('input[data-qa="card-number"]').type(number);
+        cy.get('input[data-qa="card-number"]').type(cardNumber);
         cy.get('input[data-qa="cvc"]').type('123');
         cy.get('input[data-qa="expiry-month"]').type('12');
         cy.get('input[data-qa="expiry-year"]').type('2027');
 
         cy.get('button[data-qa="pay-button"]').click();
 
+        // Asserções de Pedido Realizado
         cy.get('h2[data-qa="order-placed"]').should('have.text', 'Order Placed!');
-        cy.get('p:contains("Congratulations!")').should('exist');
-        cy.get('p:contains("Your order has been confirmed!")').should('exist');
+        cy.contains('p', 'Congratulations!').should('exist'); // Usando cy.contains é mais limpo
+        cy.contains('p', 'Your order has been confirmed!').should('exist');
 
+        // --- 4. EXCLUIR CONTA ---
         cy.get('a[href="/delete_account"]').click();
 
+        // Asserções de Exclusão de Conta
         cy.get('h2[data-qa="account-deleted"]').should('have.text', 'Account Deleted!');
-
         cy.get('a[data-qa="continue-button"]').should('be.visible');
 
     });
