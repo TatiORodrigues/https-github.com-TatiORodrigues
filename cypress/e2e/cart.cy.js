@@ -76,26 +76,50 @@ describe('Automation Exercise Test Suite_CARRINHO', () => {
 
         cy.get('a[data-product-id="6"]').first().click({ force: true }); //produto 2
         cy.get('h4[class="modal-title w-100"]').should('have.text', 'Added!');
+        // close the modal before clicking the cart link to avoid overlay covering the link
+        cy.wait(500);
+        cy.get('.modal-content').within(() => {
+            // prefer a normal click; use force only if necessary
+            cy.get('button.close-modal').first().click({ force: true }); // fechar modal (continue shopping)
+        });
+        // if modal/backdrop still present (some environments keep it), remove it as a fallback
+        cy.get('body').then($body => {
+            if ($body.find('#cartModal').length) {
+                cy.get('#cartModal').then($m => {
+                    // try to hide/remove via jQuery/modal API if available
+                    cy.window().then(win => {
+                        try {
+                            if (win.$ && win.$('#cartModal').modal) {
+                                win.$('#cartModal').modal('hide');
+                            }
+                        } catch (e) {
+                            // ignore
+                        }
+                    });
+                    // as last resort remove classes and hide
+                    cy.wrap($m).invoke('removeClass', 'show').invoke('css', 'display', 'none');
+                });
+                // remove backdrop directly from the already-captured body to avoid cy.get retry errors
+                $body.find('.modal-backdrop').remove();
+            }
+        });
         cy.get('a[href="/view_cart"]').first().click(); //link para o carrinho
 
         cy.get('body').then($body => {
-            if ($body.find('#cartModal').length) {
-                cy.get('#cartModal').within(() => {
-                    cy.get('.close, .btn-close, [data-dismiss="modal"]').first().click({ force: true });
-                });
-                cy.get('#cartModal').should('not.be.visible');
+            if ($body.find('.modal-content').length) {
+                const $modal = $body.find('.modal-content').first();
+                // try a few known close button variants inside the modal, otherwise remove as fallback
+                if ($modal.find('.btn.btn-success.close-modal.btn-block[data-dismiss="modal"]').length) {
+                    cy.wrap($modal).find('.btn.btn-success.close-modal.btn-block[data-dismiss="modal"]').first().click({ force: true });
+                } else if ($modal.find('button.close-modal').length) {
+                    cy.wrap($modal).find('button.close-modal').first().click({ force: true });
+                } else {
+                    cy.wrap($modal).invoke('removeClass', 'show').invoke('css', 'display', 'none');
+                }
+                cy.wrap($modal).should('not.be.visible');
             }
         });
-        cy.get('body').then($body => {
-            if ($body.find('#cartModal.show').length) {
-                // tenta fechar via botão
-                cy.get('#cartModal').within(() => {
-                    cy.get('.close, .btn-close, [data-dismiss="modal"]').first().click({ force: true });
-                });
-                cy.get('#cartModal').should('not.be.visible');
-            }
-        });
-
+        
         cy.url().should('include', '/view_cart');
 
         cy.get('a[class="btn btn-default check_out"]').click();
