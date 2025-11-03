@@ -1,7 +1,7 @@
 /// <reference types="cypress" />   
 //puxa a tipagem do cypress do node_modules
 
-import { 
+import {
     getRandomNumber,
     getRandomEmail
 } from '../support/helpers';
@@ -15,13 +15,13 @@ describe('Automation Exercise Test Suite_CARRINHO', () => {
 
     });
 
-it('TC15-Comprar produtos e cadastrar um usuário', () => {
+    it('TC15-Comprar produtos e cadastrar um usuário', () => {
         //const timestamp = new Date().getTime();
         // Definindo email e a senha únicos para o cadastro
         const email = getRandomEmail();
         const number = getRandomNumber();
         const password = '123456';
-       
+
         //Triplo AAA - Arrange, Act, Assert
         //ARRANGE
         cy.get('[data-qa="signup-name"]').type('Renata Taylor Tres');
@@ -39,11 +39,11 @@ it('TC15-Comprar produtos e cadastrar um usuário', () => {
         cy.get('select[data-qa=days]').select('10');
         cy.get('select[data-qa=months]').select('May');
         cy.get('select[data-qa=years]').select('1997');
-        
+
         //radio ou checkboxes -> check
         cy.get('input[type=checkbox][id=newsletter]').check();
         cy.get('input[type=checkbox][id=optin]').check();
-        
+
         cy.get('[data-qa=first_name]').type('Renata');
         cy.get('[data-qa=last_name]').type('Taylor Tres');
         cy.get('[data-qa=company]').type('New Company Inc. Second');
@@ -67,16 +67,34 @@ it('TC15-Comprar produtos e cadastrar um usuário', () => {
         cy.get('a').should('contain.text', 'Logged in as');
 
         //Comprar produtos
-        cy.get('a[data-product-id="3"]').first().click({force: true}); //produto 1
+        cy.get('a[data-product-id="3"]').first().click({ force: true }); //produto 1
         cy.get('h4[class="modal-title w-100"]').should('have.text', 'Added!');
-            cy.wait(1000); // wait for modal to be fully visible
-            cy.get('.modal-content').within(() => {
-                cy.get('button.close-modal').click({force: true}); //botão continue shopping (fechar modal)
-            });
+        cy.wait(1000); // wait for modal to be fully visible
+        cy.get('.modal-content').within(() => {
+            cy.get('button.close-modal').click({ force: true }); //botão continue shopping (fechar modal)
+        });
 
-        cy.get('a[data-product-id="6"]').first().click({force: true}); //produto 2
+        cy.get('a[data-product-id="6"]').first().click({ force: true }); //produto 2
         cy.get('h4[class="modal-title w-100"]').should('have.text', 'Added!');
         cy.get('a[href="/view_cart"]').first().click(); //link para o carrinho
+
+        cy.get('body').then($body => {
+            if ($body.find('#cartModal').length) {
+                cy.get('#cartModal').within(() => {
+                    cy.get('.close, .btn-close, [data-dismiss="modal"]').first().click({ force: true });
+                });
+                cy.get('#cartModal').should('not.be.visible');
+            }
+        });
+        cy.get('body').then($body => {
+            if ($body.find('#cartModal.show').length) {
+                // tenta fechar via botão
+                cy.get('#cartModal').within(() => {
+                    cy.get('.close, .btn-close, [data-dismiss="modal"]').first().click({ force: true });
+                });
+                cy.get('#cartModal').should('not.be.visible');
+            }
+        });
 
         cy.url().should('include', '/view_cart');
 
@@ -89,7 +107,7 @@ it('TC15-Comprar produtos e cadastrar um usuário', () => {
         cy.get('a[href="/product_details/3"]').should('be.visible');
         cy.get('#ordermsg').should('be.visible');
         cy.get('textarea[class="form-control"]').type('Please be carefull with package.');
-        
+
         cy.get('a[href="/payment"]').click();
 
         cy.url().should('contain', '/payment');
